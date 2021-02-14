@@ -58,10 +58,8 @@ fn cleanup_menu(
 
 fn setup_game(
     commands: &mut Commands,
-    _asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    // let texture_handle = asset_server.load("branding/bigusu.png");
     commands.spawn(Camera2dBundle::default());
     commands
         .spawn(SpriteBundle {
@@ -74,6 +72,10 @@ fn setup_game(
             gravity: -0.1,
         })
         .with(Player);
+    commands.insert_resource(PlayerData {
+        player_entity: commands.current_entity().unwrap(),
+    });
+    
     // bottom wall
     commands
         .spawn(SpriteBundle {
@@ -82,7 +84,12 @@ fn setup_game(
             sprite: Sprite::new(Vec2::new(500.0, 50.0)),
             ..Default::default()
         })
-        .with(Obstacle)
+        .with(Obstacle);
+    commands.insert_resource(BottomWallData {
+        wall_entity: commands.current_entity().unwrap(),
+    });
+    
+    commands
         .spawn(SpriteBundle {
             material: materials.add(Color::rgb(0.5, 0.5 ,0.5).into()),
             transform: Transform::from_translation(Vec3::new(0.0, 250.0, 0.0)),
@@ -91,8 +98,8 @@ fn setup_game(
         })
         .with(Obstacle);
 
-    commands.insert_resource(GameData {
-        game_entity: commands.current_entity().unwrap(),
+    commands.insert_resource(TopWallData {
+        wall_entity: commands.current_entity().unwrap(),
     });
 }
 
@@ -101,8 +108,16 @@ struct Player;
 struct Obstacle;
 
 #[derive(Debug)]
-struct GameData {
-    game_entity: Entity,
+struct PlayerData {
+    player_entity: Entity,
+}
+
+struct TopWallData {
+    wall_entity: Entity,
+}
+
+struct BottomWallData {
+    wall_entity: Entity,
 }
 
 struct Movement {
@@ -132,9 +147,13 @@ fn flapping_wings(
 
 fn cleanup_ingame(
     commands: &mut Commands,
-    game_data: Res<GameData>,
+    player_data: Res<PlayerData>,
+    bottom_wall_data: Res<BottomWallData>,
+    top_wall_data: Res<TopWallData>,
 ) {
-    commands.despawn_recursive(game_data.game_entity);
+    commands.despawn_recursive(player_data.player_entity);
+    commands.despawn_recursive(bottom_wall_data.wall_entity);
+    commands.despawn_recursive(top_wall_data.wall_entity);
 }
 
 struct GameOverData {
