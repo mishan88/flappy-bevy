@@ -5,8 +5,10 @@ const STAGE: &str = "app";
 enum AppState {
     Menu,
     InGame,
+    GameOver,
 }
 
+#[derive(Debug)]
 struct MenuData {
     text_entity: Entity,
 }
@@ -56,14 +58,14 @@ fn cleanup_menu(
 
 fn setup_game(
     commands: &mut Commands,
-    asset_server: Res<AssetServer>,
+    _asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
-    let texture_handle = asset_server.load("branding/bigusu.png");
+    // let texture_handle = asset_server.load("branding/bigusu.png");
     commands.spawn(Camera2dBundle::default());
     commands
         .spawn(SpriteBundle {
-            material: materials.add(texture_handle.into()),
+            material: materials.add(Color::rgb(1.0, 0.0 ,0.0).into()),
             sprite: Sprite::new(Vec2::new(50.0, 50.0)),
             ..Default::default()
         })
@@ -72,10 +74,36 @@ fn setup_game(
             gravity: -0.1,
         })
         .with(Player);
+    // bottom wall
+    commands
+        .spawn(SpriteBundle {
+            material: materials.add(Color::rgb(0.5, 0.5 ,0.5).into()),
+            transform: Transform::from_translation(Vec3::new(0.0, -250.0, 0.0)),
+            sprite: Sprite::new(Vec2::new(500.0, 50.0)),
+            ..Default::default()
+        })
+        .with(Obstacle)
+        .spawn(SpriteBundle {
+            material: materials.add(Color::rgb(0.5, 0.5 ,0.5).into()),
+            transform: Transform::from_translation(Vec3::new(0.0, 250.0, 0.0)),
+            sprite: Sprite::new(Vec2::new(500.0, 50.0)),
+            ..Default::default()
+        })
+        .with(Obstacle);
+
+    commands.insert_resource(GameData {
+        game_entity: commands.current_entity().unwrap(),
+    });
 }
 
 
 struct Player;
+struct Obstacle;
+
+#[derive(Debug)]
+struct GameData {
+    game_entity: Entity,
+}
 
 struct Movement {
     speed: f32,
@@ -84,6 +112,7 @@ struct Movement {
 
 fn flapping_wings(
     keyboard_input: Res<Input<KeyCode>>,
+    mut state: ResMut<State<AppState>>,
     mut query: Query<(&mut Transform, &mut Movement), With<Player>>,
 ) {
     for (mut transform, mut movement) in query.iter_mut() {
@@ -93,18 +122,78 @@ fn flapping_wings(
             movement.speed = 3.0;
         }
         transform.translation.y += movement.speed;
+        transform.translation.y = transform.translation.y.min(200.0).max(-200.0);
+
+        if transform.translation.y == 200.0 || transform.translation.y == -200.0 {
+            state.set_next(AppState::GameOver).unwrap();
+        }
     }
+}
+
+fn cleanup_ingame(
+    commands: &mut Commands,
+    game_data: Res<GameData>,
+) {
+    commands.despawn_recursive(game_data.game_entity);
+}
+
+struct GameOverData {
+    text_entity: Entity,
+}
+
+fn setup_gameover(
+    commands: &mut Commands,
+    asset_server: Res<AssetServer>
+) {
+    commands
+        .spawn(CameraUiBundle::default())
+        .spawn(TextBundle {
+            style: Style {
+                align_self: AlignSelf::FlexEnd,
+                ..Default::default()
+            },
+            text: Text {
+                value: "GameOver\nreturn menu Press Space!".to_string(),
+                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                style: TextStyle {
+                    font_size: 50.0,
+                    color: Color::WHITE,
+                    ..Default::default()
+                }
+            },
+            ..Default::default()
+        });
+    commands.insert_resource(GameOverData {
+        text_entity: commands.current_entity().unwrap()
+    });
+}
+
+fn return_menu(
+    mut state: ResMut<State<AppState>>,
+    keyboard_input: Res<Input<KeyCode>>,
+) {
+    if keyboard_input.just_pressed(KeyCode::Space) {
+        state.set_next(AppState::Menu).unwrap();
+    }
+}
+
+fn cleanup_gameover(
+    commands: &mut Commands,
+    gameover_data: Res<GameOverData>
+) {
+    commands.despawn_recursive(gameover_data.text_entity);
 }
 
 fn main() {
     App::build()
-        .add_plugins(DefaultPlugins)
         .add_resource(WindowDescriptor {
             width: 500.0,
             height: 500.0,
+            resizable: false,
             title: "Flappy Bevy".to_string(),
             ..Default::default()
         })
+        .add_plugins(DefaultPlugins)
         .add_resource(State::new(AppState::Menu))
         .add_stage_after(stage::UPDATE, STAGE, StateStage::<AppState>::default())
         .on_state_enter(STAGE, AppState::Menu, setup_menu.system())
@@ -112,5 +201,9 @@ fn main() {
         .on_state_exit(STAGE, AppState::Menu, cleanup_menu.system())
         .on_state_enter(STAGE, AppState::InGame, setup_game.system())
         .on_state_update(STAGE, AppState::InGame, flapping_wings.system())
+        .on_state_exit(STAGE, AppState::InGame, cleanup_ingame.system())
+        .on_state_enter(STAGE, AppState::GameOver, setup_gameover.system())
+        .on_state_update(STAGE, AppState::GameOver, return_menu.system())  
+        .on_state_exit(STAGE, AppState::GameOver, cleanup_gameover.system())      
         .run();
 }
