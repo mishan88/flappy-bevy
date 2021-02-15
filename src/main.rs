@@ -9,9 +9,7 @@ enum AppState {
 }
 
 #[derive(Debug)]
-struct MenuData {
-    text_entity: Entity,
-}
+struct MenuData;
 
 fn setup_menu(
     commands: &mut Commands,
@@ -34,10 +32,8 @@ fn setup_menu(
                 }
             },
             ..Default::default()
-        });
-    commands.insert_resource(MenuData {
-        text_entity: commands.current_entity().unwrap()
-    });
+        })
+        .with(MenuData);
 }
 
 fn to_in_game(
@@ -51,9 +47,11 @@ fn to_in_game(
 
 fn cleanup_menu(
     commands: &mut Commands,
-    menu_data: Res<MenuData>
+    query: Query<Entity, With<MenuData>>
 ) {
-    commands.despawn_recursive(menu_data.text_entity);
+    for entity in query.iter() {
+        commands.despawn_recursive(entity);
+    }
 }
 
 fn setup_game(
@@ -72,9 +70,6 @@ fn setup_game(
             gravity: -0.1,
         })
         .with(Player);
-    commands.insert_resource(PlayerData {
-        player_entity: commands.current_entity().unwrap(),
-    });
     
     // bottom wall
     commands
@@ -85,9 +80,6 @@ fn setup_game(
             ..Default::default()
         })
         .with(Obstacle);
-    commands.insert_resource(BottomWallData {
-        wall_entity: commands.current_entity().unwrap(),
-    });
     
     commands
         .spawn(SpriteBundle {
@@ -98,27 +90,11 @@ fn setup_game(
         })
         .with(Obstacle);
 
-    commands.insert_resource(TopWallData {
-        wall_entity: commands.current_entity().unwrap(),
-    });
 }
 
 
 struct Player;
 struct Obstacle;
-
-#[derive(Debug)]
-struct PlayerData {
-    player_entity: Entity,
-}
-
-struct TopWallData {
-    wall_entity: Entity,
-}
-
-struct BottomWallData {
-    wall_entity: Entity,
-}
 
 struct Movement {
     speed: f32,
@@ -147,18 +123,14 @@ fn flapping_wings(
 
 fn cleanup_ingame(
     commands: &mut Commands,
-    player_data: Res<PlayerData>,
-    bottom_wall_data: Res<BottomWallData>,
-    top_wall_data: Res<TopWallData>,
+    query: Query<Entity, Or<(With<Player>, With<Obstacle>)>>
 ) {
-    commands.despawn_recursive(player_data.player_entity);
-    commands.despawn_recursive(bottom_wall_data.wall_entity);
-    commands.despawn_recursive(top_wall_data.wall_entity);
+    for entity in query.iter() {
+        commands.despawn_recursive(entity);
+    }
 }
 
-struct GameOverData {
-    text_entity: Entity,
-}
+struct GameOverData;
 
 fn setup_gameover(
     commands: &mut Commands,
@@ -181,10 +153,8 @@ fn setup_gameover(
                 }
             },
             ..Default::default()
-        });
-    commands.insert_resource(GameOverData {
-        text_entity: commands.current_entity().unwrap()
-    });
+        })
+        .with(GameOverData);
 }
 
 fn return_menu(
@@ -198,9 +168,11 @@ fn return_menu(
 
 fn cleanup_gameover(
     commands: &mut Commands,
-    gameover_data: Res<GameOverData>
+    query: Query<Entity, With<GameOverData>>
 ) {
-    commands.despawn_recursive(gameover_data.text_entity);
+    for entity in query.iter() {
+        commands.despawn_recursive(entity);
+    }
 }
 
 fn main() {
