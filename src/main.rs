@@ -89,12 +89,16 @@ fn setup_game(
             ..Default::default()
         })
         .with(Obstacle);
-
+    commands.insert_resource(
+        SpawnTimer(Timer::from_seconds(2.0, true))
+    );
 }
 
 
 struct Player;
 struct Obstacle;
+
+struct FlyingObstacle;
 
 struct Movement {
     speed: f32,
@@ -121,9 +125,40 @@ fn flapping_wings(
     }
 }
 
+struct SpawnTimer(Timer);
+
+// TODO: despawn
+fn spawn_flyingobstacle(
+    commands: &mut Commands,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    time: Res<Time>,
+    mut timer: ResMut<SpawnTimer>
+) {
+    if !timer.0.tick(time.delta_seconds()).just_finished() {
+        return;
+    }
+
+    commands
+        .spawn(SpriteBundle {
+            material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
+            transform: Transform::from_translation(Vec3::new(250.0, 0.0, 0.0)),
+            sprite: Sprite::new(Vec2::new(30.0, 30.0)),
+            ..Default::default()
+        })
+        .with(FlyingObstacle);
+}
+
+fn move_flyingobstcle(
+    time: Res<Time>,
+    mut query: Query<(&mut Transform, &FlyingObstacle)>) {
+    for (mut transform, _) in query.iter_mut() {
+        transform.translation.x -= time.delta_seconds() * 200.0;
+    }
+}
+
 fn cleanup_ingame(
     commands: &mut Commands,
-    query: Query<Entity, Or<(With<Player>, With<Obstacle>)>>
+    query: Query<Entity, Or<(With<Player>, With<Obstacle>, With<FlyingObstacle>)>>
 ) {
     for entity in query.iter() {
         commands.despawn_recursive(entity);
@@ -192,6 +227,8 @@ fn main() {
         .on_state_exit(STAGE, AppState::Menu, cleanup_menu.system())
         .on_state_enter(STAGE, AppState::InGame, setup_game.system())
         .on_state_update(STAGE, AppState::InGame, flapping_wings.system())
+        .on_state_update(STAGE, AppState::InGame, spawn_flyingobstacle.system())
+        .on_state_update(STAGE, AppState::InGame, move_flyingobstcle.system())
         .on_state_exit(STAGE, AppState::InGame, cleanup_ingame.system())
         .on_state_enter(STAGE, AppState::GameOver, setup_gameover.system())
         .on_state_update(STAGE, AppState::GameOver, return_menu.system())  
