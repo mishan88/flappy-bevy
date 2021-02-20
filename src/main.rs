@@ -1,4 +1,7 @@
-use bevy::prelude::*;
+use bevy::{
+    prelude::*,
+    sprite::collide_aabb::collide
+};
 
 const STAGE: &str = "app";
 #[derive(Clone)]
@@ -159,6 +162,27 @@ fn move_flyingobstcle(
     }
 }
 
+fn collide_flyingobstacle(
+    commands: &mut Commands,
+    mut flyingobstacle_query: Query<(Entity, &Transform, &Sprite), With<FlyingObstacle>>,
+    query: Query<(Entity, &Transform, &Sprite), With<Player>>,
+) {
+    for (flyingobstacle_entity, flyingobstacle_transform, flyingobstacle_sprite) in flyingobstacle_query.iter_mut() {
+        for (_player_entity, player_transform, player_sprite) in query.iter() {
+            let collision = collide(
+                flyingobstacle_transform.translation,
+                flyingobstacle_sprite.size,
+                player_transform.translation,
+                player_sprite.size
+            );
+            if collision.is_some() {
+                commands.despawn(flyingobstacle_entity);
+            }
+
+        }
+    }
+}
+
 fn cleanup_ingame(
     commands: &mut Commands,
     query: Query<Entity, Or<(With<Player>, With<Obstacle>, With<FlyingObstacle>)>>
@@ -232,6 +256,7 @@ fn main() {
         .on_state_update(STAGE, AppState::InGame, flapping_wings.system())
         .on_state_update(STAGE, AppState::InGame, spawn_flyingobstacle.system())
         .on_state_update(STAGE, AppState::InGame, move_flyingobstcle.system())
+        .on_state_update(STAGE, AppState::InGame, collide_flyingobstacle.system())
         .on_state_exit(STAGE, AppState::InGame, cleanup_ingame.system())
         .on_state_enter(STAGE, AppState::GameOver, setup_gameover.system())
         .on_state_update(STAGE, AppState::GameOver, return_menu.system())  
