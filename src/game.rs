@@ -1,5 +1,6 @@
 use crate::{AppState, STAGE};
 use bevy::{prelude::*, sprite::collide_aabb::collide};
+use rand::prelude::*;
 
 pub struct GamePlugin;
 
@@ -96,11 +97,12 @@ fn spawn_flyingobstacle(
     if !timer.0.tick(time.delta_seconds()).just_finished() {
         return;
     }
+    let mut rng = rand::thread_rng();
 
     commands
         .spawn(SpriteBundle {
             material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
-            transform: Transform::from_translation(Vec3::new(250.0, 0.0, 0.0)),
+            transform: Transform::from_translation(Vec3::new(250.0, rng.gen_range(-200.0..200.0), 0.0)),
             sprite: Sprite::new(Vec2::new(30.0, 30.0)),
             ..Default::default()
         })
