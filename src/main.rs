@@ -165,10 +165,10 @@ fn move_flyingobstcle(
 fn collide_flyingobstacle(
     commands: &mut Commands,
     mut flyingobstacle_query: Query<(Entity, &Transform, &Sprite), With<FlyingObstacle>>,
-    query: Query<(Entity, &Transform, &Sprite), With<Player>>,
+    query: Query<(&Transform, &Sprite), With<Player>>,
 ) {
     for (flyingobstacle_entity, flyingobstacle_transform, flyingobstacle_sprite) in flyingobstacle_query.iter_mut() {
-        for (_player_entity, player_transform, player_sprite) in query.iter() {
+        for (player_transform, player_sprite) in query.iter() {
             let collision = collide(
                 flyingobstacle_transform.translation,
                 flyingobstacle_sprite.size,
