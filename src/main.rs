@@ -127,7 +127,6 @@ fn flapping_wings(
 
 struct SpawnTimer(Timer);
 
-// TODO: despawn
 fn spawn_flyingobstacle(
     commands: &mut Commands,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -149,10 +148,14 @@ fn spawn_flyingobstacle(
 }
 
 fn move_flyingobstcle(
+    commands: &mut Commands,
     time: Res<Time>,
-    mut query: Query<(&mut Transform, &FlyingObstacle)>) {
-    for (mut transform, _) in query.iter_mut() {
+    mut query: Query<(Entity, &mut Transform), With<FlyingObstacle>>) {
+    for (entity, mut transform) in query.iter_mut() {
         transform.translation.x -= time.delta_seconds() * 200.0;
+        if transform.translation.x < -250.0 {
+            commands.despawn(entity);
+        }
     }
 }
 
