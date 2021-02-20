@@ -14,6 +14,8 @@ impl Plugin for GamePlugin {
     }
 }
 
+type GameEntity = Or<(With<Player>, With<Obstacle>, With<FlyingObstacle>)>;
+
 fn setup_game(commands: &mut Commands, mut materials: ResMut<Assets<ColorMaterial>>) {
     commands.spawn(Camera2dBundle::default());
     commands
@@ -73,7 +75,11 @@ fn flapping_wings(
         transform.translation.y += movement.speed;
         transform.translation.y = transform.translation.y.min(200.0).max(-200.0);
 
-        if transform.translation.y == 200.0 || transform.translation.y == -200.0 {
+        let touch_margin = f32::EPSILON;
+
+        if (transform.translation.y - 200.0).abs() < touch_margin
+            || (transform.translation.y - -200.0).abs() < touch_margin
+        {
             state.set_next(AppState::GameOver).unwrap();
         }
     }
@@ -136,10 +142,7 @@ fn collide_flyingobstacle(
     }
 }
 
-fn cleanup_ingame(
-    commands: &mut Commands,
-    query: Query<Entity, Or<(With<Player>, With<Obstacle>, With<FlyingObstacle>)>>,
-) {
+fn cleanup_ingame(commands: &mut Commands, query: Query<Entity, GameEntity>) {
     for entity in query.iter() {
         commands.despawn_recursive(entity);
     }
