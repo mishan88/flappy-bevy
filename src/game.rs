@@ -11,14 +11,25 @@ impl Plugin for GamePlugin {
             .on_state_update(STAGE, AppState::InGame, spawn_flyingobstacle.system())
             .on_state_update(STAGE, AppState::InGame, move_flyingobstcle.system())
             .on_state_update(STAGE, AppState::InGame, collide_flyingobstacle.system())
+            .on_state_update(STAGE, AppState::InGame, text_score_update.system())
             .on_state_exit(STAGE, AppState::InGame, cleanup_ingame.system());
     }
 }
 
-type GameEntity = Or<(With<Player>, With<Obstacle>, With<FlyingObstacle>)>;
+type GameEntity = Or<(
+    With<Player>,
+    With<Obstacle>,
+    With<FlyingObstacle>,
+    With<ScoreText>,
+)>;
 
-fn setup_game(commands: &mut Commands, mut materials: ResMut<Assets<ColorMaterial>>) {
+fn setup_game(
+    commands: &mut Commands,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    asset_server: Res<AssetServer>,
+) {
     commands.spawn(Camera2dBundle::default());
+    commands.spawn(CameraUiBundle::default());
     commands
         .spawn(SpriteBundle {
             material: materials.add(Color::rgb(1.0, 0.0, 0.0).into()),
@@ -50,6 +61,25 @@ fn setup_game(commands: &mut Commands, mut materials: ResMut<Assets<ColorMateria
         })
         .with(Obstacle);
     commands.insert_resource(SpawnTimer(Timer::from_seconds(2.0, true)));
+    commands
+        .spawn(TextBundle {
+            style: Style {
+                align_self: AlignSelf::FlexEnd,
+                ..Default::default()
+            },
+            text: Text {
+                value: "Score".to_string(),
+                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                style: TextStyle {
+                    font_size: 30.0,
+                    color: Color::WHITE,
+                    ..Default::default()
+                },
+            },
+            ..Default::default()
+        })
+        .with(ScoreText);
+    commands.insert_resource(ScoreBoard { score: 0 });
 }
 
 struct Player;
@@ -60,6 +90,13 @@ struct FlyingObstacle;
 struct Movement {
     speed: f32,
     gravity: f32,
+}
+
+struct ScoreText;
+
+#[derive(Default)]
+pub struct ScoreBoard {
+    score: usize,
 }
 
 fn flapping_wings(
@@ -102,7 +139,11 @@ fn spawn_flyingobstacle(
     commands
         .spawn(SpriteBundle {
             material: materials.add(Color::rgb(0.5, 0.5, 0.5).into()),
-            transform: Transform::from_translation(Vec3::new(250.0, rng.gen_range(-200.0..200.0), 0.0)),
+            transform: Transform::from_translation(Vec3::new(
+                250.0,
+                rng.gen_range(-200.0..200.0),
+                0.0,
+            )),
             sprite: Sprite::new(Vec2::new(30.0, 30.0)),
             ..Default::default()
         })
@@ -124,6 +165,7 @@ fn move_flyingobstcle(
 
 fn collide_flyingobstacle(
     commands: &mut Commands,
+    mut scoreboard: ResMut<ScoreBoard>,
     mut flyingobstacle_query: Query<(Entity, &Transform, &Sprite), With<FlyingObstacle>>,
     query: Query<(&Transform, &Sprite), With<Player>>,
 ) {
@@ -138,14 +180,26 @@ fn collide_flyingobstacle(
                 player_sprite.size,
             );
             if collision.is_some() {
+                scoreboard.score += 1;
                 commands.despawn(flyingobstacle_entity);
             }
         }
     }
 }
 
-fn cleanup_ingame(commands: &mut Commands, query: Query<Entity, GameEntity>) {
+fn text_score_update(scoreboard: Res<ScoreBoard>, mut query: Query<&mut Text, With<ScoreText>>) {
+    for mut text in query.iter_mut() {
+        text.value = scoreboard.score.to_string();
+    }
+}
+
+fn cleanup_ingame(
+    commands: &mut Commands,
+    mut scoreboard: ResMut<ScoreBoard>,
+    query: Query<Entity, GameEntity>,
+) {
     for entity in query.iter() {
         commands.despawn_recursive(entity);
     }
+    scoreboard.score = 0;
 }
